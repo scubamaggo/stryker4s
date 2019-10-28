@@ -40,6 +40,7 @@ object Settings {
       Dependencies.log4jCore,
       Dependencies.grizzledSlf4j,
       Dependencies.log4jslf4jImpl % Test, // Logging tests need a slf4j implementation
+      Dependencies.catsEffect,
       Dependencies.circeCore,
       Dependencies.circeGeneric,
       Dependencies.scalajHttp,

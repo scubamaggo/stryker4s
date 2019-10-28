@@ -1,4 +1,5 @@
 package stryker4s.report
+import cats.effect.IO
 import stryker4s.model.{Mutant, MutantRunResult, MutantRunResults}
 
 trait MutationRunReporter
@@ -10,5 +11,5 @@ trait ProgressReporter extends MutationRunReporter {
 }
 
 trait FinishedRunReporter extends MutationRunReporter {
-  def reportRunFinished(runResults: MutantRunResults): Unit
+  def reportRunFinished(runResults: MutantRunResults): IO[Unit]
 }

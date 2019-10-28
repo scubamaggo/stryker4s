@@ -9,7 +9,7 @@ import scala.util.{Failure, Try}
 
 class Reporter(implicit config: Config) extends FinishedRunReporter with ProgressReporter with Logging {
 
-  lazy val reporters: Seq[MutationRunReporter] = config.reporters collect {
+  lazy val reporters: Seq[MutationRunReporter] = config.reporters map {
     case ConsoleReporterType             => new ConsoleReporter()
     case HtmlReporterType                => new HtmlReporter(DiskFileIO)
     case JsonReporterType                => new JsonReporter(DiskFileIO)
