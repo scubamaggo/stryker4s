@@ -37,7 +37,7 @@ class DashboardReporter(webIO: WebIO, ciEnvironment: CiEnvironment)
         IO(info(s"Sent report to dashboard: $dashboardRootURL"))
       case response =>
         IO(error(s"Failed to send report to dashboard.")) *>
-        IO(error(s"Expected status code 201, but was ${response.code}. Body: '${response.body}'"))
+          IO(error(s"Expected status code 201, but was ${response.code}. Body: '${response.body}'"))
     }
   }
 }

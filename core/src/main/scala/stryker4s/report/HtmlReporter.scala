@@ -56,10 +56,10 @@ class HtmlReporter(fileIO: FileIO)(implicit config: Config)
     val reportLocation = targetLocation / reportFilename
 
     for {
-    _ <- writeIndexHtmlTo(indexLocation)
-    _ <- writeReportJsTo(reportLocation, toReport(runResults))
-    _ <- writeMutationTestElementsJsTo(mutationTestElementsLocation)
-    _ <- IO(info(s"Written HTML report to $indexLocation"))
+      _ <- writeIndexHtmlTo(indexLocation)
+      _ <- writeReportJsTo(reportLocation, toReport(runResults))
+      _ <- writeMutationTestElementsJsTo(mutationTestElementsLocation)
+      _ <- IO(info(s"Written HTML report to $indexLocation"))
     } yield ()
   }
 }

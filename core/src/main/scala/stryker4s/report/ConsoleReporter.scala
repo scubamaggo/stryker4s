@@ -36,9 +36,11 @@ class ConsoleReporter(implicit config: Config) extends FinishedRunReporter with 
           IO(error(s"Mutation score dangerously low!"))
           IO(error(s"$mutationScoreStr $mutationScore%"))
         case ErrorStatus =>
-          IO(error(
-            s"Mutation score below threshold! Score: $mutationScore%. Threshold: ${config.thresholds.break}%"
-          ))
+          IO(
+            error(
+              s"Mutation score below threshold! Score: $mutationScore%. Threshold: ${config.thresholds.break}%"
+            )
+          )
       }
     }
 

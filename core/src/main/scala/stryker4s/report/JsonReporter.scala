@@ -30,6 +30,6 @@ class JsonReporter(fileIO: FileIO)(implicit config: Config)
     val resultLocation = targetLocation / "report.json"
 
     writeReportJsonTo(resultLocation, runResults) *>
-       IO(info(s"Written JSON report to $resultLocation"))
+      IO(info(s"Written JSON report to $resultLocation"))
   }
 }
