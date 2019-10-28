@@ -1,6 +1,7 @@
 package stryker4s.report
 
 import better.files.File
+import cats.effect.IO
 import grizzled.slf4j.Logging
 import stryker4s.config.Config
 import stryker4s.files.FileIO
@@ -35,29 +36,30 @@ class HtmlReporter(fileIO: FileIO)(implicit config: Config)
        |</body>
        |</html>""".stripMargin
 
-  def writeMutationTestElementsJsTo(file: File): Unit =
-    fileIO.createAndWriteFromResource(file, htmlReportResource)
+  private def writeMutationTestElementsJsTo(file: File): IO[Unit] =
+    IO(fileIO.createAndWriteFromResource(file, htmlReportResource))
 
-  def writeIndexHtmlTo(file: File): Unit =
-    fileIO.createAndWrite(file, indexHtml)
+  private def writeIndexHtmlTo(file: File): IO[Unit] =
+    IO(fileIO.createAndWrite(file, indexHtml))
 
-  def writeReportJsTo(file: File, report: MutationTestReport): Unit = {
+  private def writeReportJsTo(file: File, report: MutationTestReport): IO[Unit] = {
     val json = report.toJson
     val reportContent = s"document.querySelector('mutation-test-report-app').report = $json"
-    fileIO.createAndWrite(file, reportContent)
+    IO(fileIO.createAndWrite(file, reportContent))
   }
 
-  override def reportRunFinished(runResults: MutantRunResults): Unit = {
+  override def reportRunFinished(runResults: MutantRunResults): IO[Unit] = {
     val targetLocation = config.baseDir / s"target/stryker4s-report-${runResults.timestamp}"
 
     val mutationTestElementsLocation = targetLocation / mutationTestElementsName
     val indexLocation = targetLocation / "index.html"
     val reportLocation = targetLocation / reportFilename
 
-    writeIndexHtmlTo(indexLocation)
-    writeReportJsTo(reportLocation, toReport(runResults))
-    writeMutationTestElementsJsTo(mutationTestElementsLocation)
-
-    info(s"Written HTML report to $indexLocation")
+    for {
+    _ <- writeIndexHtmlTo(indexLocation)
+    _ <- writeReportJsTo(reportLocation, toReport(runResults))
+    _ <- writeMutationTestElementsJsTo(mutationTestElementsLocation)
+    _ <- IO(info(s"Written HTML report to $indexLocation"))
+    } yield ()
   }
 }
