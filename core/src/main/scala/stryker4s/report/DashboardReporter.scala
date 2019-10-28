@@ -1,5 +1,7 @@
 package stryker4s.report
 
+import cats.effect.IO
+import cats.syntax.apply._
 import grizzled.slf4j.Logging
 import scalaj.http.HttpResponse
 import stryker4s.http.{HttpClient, WebIO}
@@ -25,18 +27,17 @@ class DashboardReporter(webIO: WebIO, ciEnvironment: CiEnvironment)
     )
   }
 
-  def writeReportToDashboard(url: String, report: StrykerDashboardReport): HttpResponse[String] = {
-    webIO.postRequest(url, report.toJson)
+  def writeReportToDashboard(url: String, report: StrykerDashboardReport): IO[HttpResponse[String]] = {
+    IO(webIO.postRequest(url, report.toJson))
   }
 
-  override def reportRunFinished(runResults: MutantRunResults): Unit = {
-    val response = writeReportToDashboard(dashboardURL, buildScoreResult(runResults))
-
-    if (response.code == 201) {
-      info(s"Sent report to dashboard: $dashboardRootURL")
-    } else {
-      error(s"Failed to send report to dashboard.")
-      error(s"Expected status code 201, but was ${response.code}. Body: '${response.body}'")
+  override def reportRunFinished(runResults: MutantRunResults): IO[Unit] = {
+    writeReportToDashboard(dashboardURL, buildScoreResult(runResults)).map {
+      case response if response.code == 200 =>
+        IO(info(s"Sent report to dashboard: $dashboardRootURL"))
+      case response =>
+        IO(error(s"Failed to send report to dashboard.")) *>
+        IO(error(s"Expected status code 201, but was ${response.code}. Body: '${response.body}'"))
     }
   }
 }
