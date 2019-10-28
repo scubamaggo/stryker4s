@@ -1,15 +1,16 @@
 package stryker4s.report
 
+import cats.effect.IO
+import cats.syntax.traverse._
+import cats.instances.list._
 import grizzled.slf4j.Logging
 import stryker4s.config._
 import stryker4s.files.DiskFileIO
 import stryker4s.model.{Mutant, MutantRunResult, MutantRunResults}
 
-import scala.util.{Failure, Try}
-
 class Reporter(implicit config: Config) extends FinishedRunReporter with ProgressReporter with Logging {
 
-  lazy val reporters: Seq[MutationRunReporter] = config.reporters map {
+  lazy val reporters: List[MutationRunReporter] = config.reporters map {
     case ConsoleReporterType             => new ConsoleReporter()
     case HtmlReporterType                => new HtmlReporter(DiskFileIO)
     case JsonReporterType                => new JsonReporter(DiskFileIO)
@@ -25,13 +26,16 @@ class Reporter(implicit config: Config) extends FinishedRunReporter with Progres
   override def reportMutationComplete(result: MutantRunResult, totalMutants: Int): Unit =
     progressReporters.foreach(_.reportMutationComplete(result, totalMutants))
 
-  override def reportRunFinished(runResults: MutantRunResults): Unit = {
-    val reported = finishedRunReporters.map(reporter => Try(reporter.reportRunFinished(runResults)))
-    val failed = reported.collect({ case f: Failure[Unit] => f })
-    if (failed.nonEmpty) {
-      warn(s"${failed.length} reporter(s) failed to report:")
-      failed.map(_.exception).foreach(warn(_))
-    }
+  override def reportRunFinished(runResults: MutantRunResults): IO[Unit] = {
+    finishedRunReporters
+      .traverse(reporter => reporter.reportRunFinished(runResults).attempt)
+      .map { results =>
+        val exceptions = results.collect { case Left(e) => e }
+        if (exceptions.nonEmpty) {
+          warn(s"${exceptions.length} reporter(s) failed to report:")
+          exceptions.foreach(warn)
+        }
+      }
   }
 
 }

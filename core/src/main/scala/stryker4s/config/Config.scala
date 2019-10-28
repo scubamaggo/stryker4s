@@ -7,7 +7,7 @@ import pureconfig.generic.auto._
 case class Config(
     mutate: Seq[String] = Seq("**/main/scala/**.scala"),
     baseDir: File = File.currentWorkingDirectory,
-    reporters: Seq[ReporterType] = Seq(ConsoleReporterType, HtmlReporterType),
+    reporters: List[ReporterType] = List(ConsoleReporterType, HtmlReporterType),
     files: Option[Seq[String]] = None,
     excludedMutations: ExcludedMutations = ExcludedMutations(),
     thresholds: Thresholds = Thresholds()
