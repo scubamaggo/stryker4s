@@ -30,7 +30,7 @@ class DashboardReporterTest extends Stryker4sSuite with MockitoSuite with LogMat
       )
 
       val convertToReport = sut.buildScoreResult(runResults)
-      sut.writeReportToDashboard(testUrl, convertToReport)
+      sut.writeReportToDashboard(testUrl, convertToReport).unsafeRunSync()
 
       val expectedJson = convertToReport.asJson.noSpaces
       convertToReport should equal(StrykerDashboardReport("someApiKey", "myRepo", "myBranch", mutationScore))
@@ -49,7 +49,7 @@ class DashboardReporterTest extends Stryker4sSuite with MockitoSuite with LogMat
       }, ciEnvironment)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       sentMessage shouldBe loggedAsInfo
       failedMessage should not be loggedAsError
@@ -62,7 +62,7 @@ class DashboardReporterTest extends Stryker4sSuite with MockitoSuite with LogMat
       }, ciEnvironment)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       failedMessage shouldBe loggedAsError
       "Expected status code 201, but was 200. Body: 'null'" shouldBe loggedAsError
@@ -75,7 +75,7 @@ class DashboardReporterTest extends Stryker4sSuite with MockitoSuite with LogMat
       }, ciEnvironment)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       failedMessage shouldBe loggedAsError
       "Expected status code 201, but was 400. Body: 'Bad request'" shouldBe loggedAsError

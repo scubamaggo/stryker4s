@@ -32,8 +32,8 @@ class DashboardReporter(webIO: WebIO, ciEnvironment: CiEnvironment)
   }
 
   override def reportRunFinished(runResults: MutantRunResults): IO[Unit] = {
-    writeReportToDashboard(dashboardURL, buildScoreResult(runResults)).map {
-      case response if response.code == 200 =>
+    writeReportToDashboard(dashboardURL, buildScoreResult(runResults)).flatMap {
+      case response if response.code == 201 =>
         IO(info(s"Sent report to dashboard: $dashboardRootURL"))
       case response =>
         IO(error(s"Failed to send report to dashboard.")) *>

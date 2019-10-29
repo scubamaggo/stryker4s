@@ -26,7 +26,7 @@ class JsonReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
         duration = durationMinutes.minutes
       )
 
-      sut.writeReportJsonTo(testFile, runResults)
+      sut.writeReportJsonTo(testFile, runResults).unsafeRunSync()
 
       val expectedJs =
         s"""{"schemaVersion":"1","thresholds":{"high":80,"low":60},"files":{}}"""
@@ -43,7 +43,7 @@ class JsonReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new JsonReporter(mockFileIO)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       val writtenFilesCaptor = ArgCaptor[File]
 
@@ -60,7 +60,7 @@ class JsonReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new JsonReporter(mockFileIO)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       val captor = ArgCaptor[File]
       verify(mockFileIO).createAndWrite(captor.capture, any[String])

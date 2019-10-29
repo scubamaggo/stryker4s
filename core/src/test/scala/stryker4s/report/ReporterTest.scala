@@ -1,5 +1,6 @@
 package stryker4s.report
 
+import cats.effect.IO
 import stryker4s.config.Config
 import stryker4s.model.{Mutant, MutantRunResult, MutantRunResults}
 import stryker4s.scalatest.LogMatchers
@@ -7,13 +8,25 @@ import stryker4s.testutil.{MockitoSuite, Stryker4sSuite}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 
 class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
+
+  private def successfulReporterMock[T <: FinishedRunReporter: ClassTag]: T = {
+    val m = mock[T]
+    when(m.reportRunFinished(any[MutantRunResults])).thenReturn(IO.unit)
+    m
+  }
+
+  private def failingReporterMock[T <: FinishedRunReporter: ClassTag](e: Throwable): T = {
+    val m = mock[T]
+    when(m.reportRunFinished(any[MutantRunResults])).thenReturn(IO.raiseError(e))
+  }
 
   describe("reporter") {
 
     it("should log that the console reporter is used when a non existing reporter is configured") {
-      val consoleReporterMock = mock[ConsoleReporter]
+      val consoleReporterMock = successfulReporterMock[ConsoleReporter]
       implicit val config: Config = Config()
 
       val mutantRunResults = MutantRunResults(List.empty, 100.0, 10 seconds)
@@ -22,7 +35,7 @@ class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
         override lazy val reporters: List[ConsoleReporter] = List(consoleReporterMock)
       }
 
-      sut.reportRunFinished(mutantRunResults)
+      sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
       verify(consoleReporterMock).reportRunFinished(mutantRunResults)
     }
@@ -101,8 +114,8 @@ class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
 
     describe("reportRunFinished") {
       it("should report to all finished mutation run reporters that a mutation run is completed") {
-        val consoleReporterMock = mock[ConsoleReporter]
-        val FinishedRunReporterMock = mock[FinishedRunReporter]
+        val consoleReporterMock = successfulReporterMock[ConsoleReporter]
+        val FinishedRunReporterMock = successfulReporterMock[FinishedRunReporter]
         implicit val config: Config = Config()
 
         val mutantRunResults = MutantRunResults(List.empty, 100.0, 10 seconds)
@@ -111,14 +124,14 @@ class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
           override lazy val reporters: List[MutationRunReporter] = List(consoleReporterMock, FinishedRunReporterMock)
         }
 
-        sut.reportRunFinished(mutantRunResults)
+        sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
         verify(consoleReporterMock).reportRunFinished(mutantRunResults)
         verify(FinishedRunReporterMock).reportRunFinished(mutantRunResults)
       }
 
       it("should not report a finished mutation run to a progress reporter") {
-        val consoleReporterMock = mock[ConsoleReporter]
+        val consoleReporterMock = successfulReporterMock[ConsoleReporter]
         val progressReporterMock = mock[ProgressReporter]
         implicit val config: Config = Config()
 
@@ -128,26 +141,24 @@ class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
           override lazy val reporters: List[MutationRunReporter] = List(consoleReporterMock, progressReporterMock)
         }
 
-        sut.reportRunFinished(mutantRunResults)
+        sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
         verify(consoleReporterMock).reportRunFinished(mutantRunResults)
         verifyZeroInteractions(progressReporterMock)
       }
 
       it("should still call other reporters if a reporter throws an exception") {
-        val consoleReporterMock = mock[ConsoleReporter]
-        val progressReporterMock = mock[FinishedRunReporter]
+        val consoleReporterMock = failingReporterMock[ConsoleReporter](new RuntimeException("Something happened"))
+        val progressReporterMock = successfulReporterMock[FinishedRunReporter]
         implicit val config: Config = Config()
 
         val mutantRunResults = MutantRunResults(List.empty, 100.0, 10 seconds)
-        when(consoleReporterMock.reportRunFinished(mutantRunResults))
-          .thenThrow(new RuntimeException("Something happened"))
 
         val sut: Reporter = new Reporter() {
           override lazy val reporters: List[MutationRunReporter] = List(consoleReporterMock, progressReporterMock)
         }
 
-        sut.reportRunFinished(mutantRunResults)
+        sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
         verify(progressReporterMock).reportRunFinished(mutantRunResults)
       }
@@ -162,26 +173,24 @@ class ReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers {
         val mutantRunResults = MutantRunResults(List.empty, 100.0, 10 seconds)
 
         it("should log if a report throws an exception") {
-          val consoleReporterMock = mock[ConsoleReporter]
+          val consoleReporterMock = failingReporterMock[ConsoleReporter](new RuntimeException("Something happened"))
           val sut: Reporter = new Reporter() {
             override lazy val reporters: List[MutationRunReporter] = List(consoleReporterMock, progressReporterMock)
           }
-          when(consoleReporterMock.reportRunFinished(mutantRunResults))
-            .thenThrow(new RuntimeException("Something happened"))
 
-          sut.reportRunFinished(mutantRunResults)
+          sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
           failedToReportMessage shouldBe loggedAsWarning
           exceptionMessage shouldBe loggedAsWarning
         }
 
         it("should not log warnings if no exceptions occur") {
-          val consoleReporterMock = mock[ConsoleReporter]
+          val consoleReporterMock = successfulReporterMock[ConsoleReporter]
           val sut: Reporter = new Reporter() {
             override lazy val reporters: List[MutationRunReporter] = List(consoleReporterMock, progressReporterMock)
           }
 
-          sut.reportRunFinished(mutantRunResults)
+          sut.reportRunFinished(mutantRunResults).unsafeRunSync()
 
           verify(consoleReporterMock).reportRunFinished(mutantRunResults)
           failedToReportMessage should not be loggedAsWarning

@@ -1,6 +1,7 @@
 package stryker4s.report
 
 import cats.effect.IO
+import cats.syntax.apply._
 import grizzled.slf4j.Logging
 import stryker4s.config.Config
 import stryker4s.model._
@@ -33,8 +34,8 @@ class ConsoleReporter(implicit config: Config) extends FinishedRunReporter with 
         case SuccessStatus => IO(info(s"$mutationScoreStr $mutationScore%"))
         case WarningStatus => IO(warn(s"$mutationScoreStr $mutationScore%"))
         case DangerStatus =>
-          IO(error(s"Mutation score dangerously low!"))
-          IO(error(s"$mutationScoreStr $mutationScore%"))
+          IO(error(s"Mutation score dangerously low!")) *>
+            IO(error(s"$mutationScoreStr $mutationScore%"))
         case ErrorStatus =>
           IO(
             error(

@@ -38,7 +38,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new HtmlReporter(mockFileIO)
       val testFile = config.baseDir / "foo.bar"
 
-      sut.writeIndexHtmlTo(testFile)
+      sut.writeIndexHtmlTo(testFile).unsafeRunSync()
 
       verify(mockFileIO).createAndWrite(testFile, expectedHtml)
     }
@@ -52,7 +52,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val testFile = config.baseDir / "foo.bar"
       val runResults = MutationTestReport("1.0", Thresholds(100, 0), Map.empty)
 
-      sut.writeReportJsTo(testFile, runResults)
+      sut.writeReportJsTo(testFile, runResults).unsafeRunSync()
 
       val expectedJs =
         """document.querySelector('mutation-test-report-app').report = {"schemaVersion":"1.0","thresholds":{"high":100,"low":0},"files":{}}"""
@@ -67,7 +67,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       File.usingTemporaryFile() { tempFile =>
         val sut = new HtmlReporter(fileIO)
 
-        sut.writeMutationTestElementsJsTo(tempFile)
+        sut.writeMutationTestElementsJsTo(tempFile).unsafeRunSync()
         val atLeastSize: Long = 200 * 1024 // 200KB
         tempFile.size should be > atLeastSize
         tempFile.lineIterator.next() should startWith("!function(")
@@ -84,7 +84,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new HtmlReporter(mockFileIO)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       val writtenFilesCaptor = ArgCaptor[File]
 
@@ -102,7 +102,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new HtmlReporter(mockFileIO)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       val elementsCaptor = ArgCaptor[File]
       verify(mockFileIO, times(2)).createAndWrite(any[File], any[String])
@@ -117,7 +117,7 @@ class HtmlReporterTest extends Stryker4sSuite with MockitoSuite with LogMatchers
       val sut = new HtmlReporter(mockFileIO)
       val runResults = MutantRunResults(Nil, 50.0, 30.seconds)
 
-      sut.reportRunFinished(runResults)
+      sut.reportRunFinished(runResults).unsafeRunSync()
 
       val captor = ArgCaptor[File]
       verify(mockFileIO).createAndWrite(captor.capture, eqTo(expectedHtml))

@@ -68,7 +68,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation run finished! Took 15 seconds" shouldBe loggedAsInfo
       "Total mutants: 3, detected: 1, undetected: 2" shouldBe loggedAsInfo
@@ -97,7 +97,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation run finished! Took 15 seconds" shouldBe loggedAsInfo
       "Total mutants: 3, detected: 0, undetected: 3" shouldBe loggedAsInfo
@@ -127,7 +127,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation score dangerously low!" shouldBe loggedAsError
       "Mutation score: 50.0%" shouldBe loggedAsError
@@ -141,7 +141,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation score: 50.0%" shouldBe loggedAsWarning
     }
@@ -154,7 +154,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation score: 50.0%" shouldBe loggedAsInfo
     }
@@ -167,7 +167,7 @@ class ConsoleReporterTypeTest extends Stryker4sSuite with LogMatchers {
         50,
         15.seconds
       )
-      sut.reportRunFinished(results)
+      sut.reportRunFinished(results).unsafeRunSync()
 
       "Mutation score below threshold! Score: 50.0%. Threshold: 51%" shouldBe loggedAsError
     }
