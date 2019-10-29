@@ -33,7 +33,7 @@ class Reporter(implicit config: Config) extends FinishedRunReporter with Progres
         val exceptions = results.collect { case Left(e) => e }
         if (exceptions.nonEmpty) {
           warn(s"${exceptions.length} reporter(s) failed to report:")
-          exceptions.foreach(warn)
+          exceptions.foreach(warn(_))
         }
       }
   }

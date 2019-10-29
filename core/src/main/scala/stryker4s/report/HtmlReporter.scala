@@ -36,13 +36,13 @@ class HtmlReporter(fileIO: FileIO)(implicit config: Config)
        |</body>
        |</html>""".stripMargin
 
-  private def writeMutationTestElementsJsTo(file: File): IO[Unit] =
+  def writeMutationTestElementsJsTo(file: File): IO[Unit] =
     IO(fileIO.createAndWriteFromResource(file, htmlReportResource))
 
-  private def writeIndexHtmlTo(file: File): IO[Unit] =
+  def writeIndexHtmlTo(file: File): IO[Unit] =
     IO(fileIO.createAndWrite(file, indexHtml))
 
-  private def writeReportJsTo(file: File, report: MutationTestReport): IO[Unit] = {
+  def writeReportJsTo(file: File, report: MutationTestReport): IO[Unit] = {
     val json = report.toJson
     val reportContent = s"document.querySelector('mutation-test-report-app').report = $json"
     IO(fileIO.createAndWrite(file, reportContent))

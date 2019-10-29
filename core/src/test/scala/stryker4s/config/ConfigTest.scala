@@ -34,7 +34,7 @@ class ConfigTest extends Stryker4sSuite {
       val sut = Config(
         filePaths,
         File("tmp"),
-        reporters = Seq(HtmlReporterType),
+        reporters = List(HtmlReporterType),
         excludedMutations = ExcludedMutations(Set("BooleanLiteral"))
       )
 
