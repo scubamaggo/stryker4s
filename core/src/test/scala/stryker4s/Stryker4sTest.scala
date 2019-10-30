@@ -3,6 +3,7 @@ package stryker4s
 import java.nio.file.{Path, Paths}
 
 import better.files.File
+import cats.effect.IO
 import org.mockito.captor.ArgCaptor
 import org.scalatest.Inside
 import stryker4s.config.Config
@@ -36,6 +37,7 @@ class Stryker4sTest extends Stryker4sSuite with MockitoSuite with Inside with Lo
     val testSourceCollector = new TestSourceCollector(testFiles)
     val testProcessRunner = TestProcessRunner(Success(1), Success(1), Success(1), Success(1))
     val reporterMock = mock[Reporter]
+    when(reporterMock.reportRunFinished(any[MutantRunResults])).thenReturn(IO.unit)
 
     it("should call mutate files and report the results") {
       implicit val conf: Config = Config(baseDir = FileUtil.getResource("scalaFiles"))
