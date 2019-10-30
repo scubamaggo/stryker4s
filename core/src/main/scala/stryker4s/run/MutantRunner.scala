@@ -38,7 +38,7 @@ abstract class MutantRunner(sourceCollector: SourceCollector, reporter: Reporter
     val detected = runResults collect { case d: Detected => d }
 
     val result = MutantRunResults(runResults, calculateMutationScore(runResults.size, detected.size), duration)
-    reporter.reportRunFinished(result)
+    reporter.reportRunFinished(result).unsafeRunSync()
     result
   }
 
