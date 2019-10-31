@@ -98,12 +98,12 @@ class ConfigReaderTest extends Stryker4sSuite with LogMatchers with ConfigReader
   }
 
   describe("logs") {
-    it("should log when config file in directory is used") {
+    it("should log where the config is read from") {
       val confPath = FileUtil.getResource("stryker4sconfs/filled.conf")
 
       ConfigReader.readConfig(confPath)
 
-      "Using stryker4s.conf in the current working directory" shouldBe loggedAsInfo
+      s"Attempting to read config from ${confPath.path}" shouldBe loggedAsInfo
     }
 
     it("should log warnings when no config file is found") {
@@ -122,7 +122,8 @@ class ConfigReaderTest extends Stryker4sSuite with LogMatchers with ConfigReader
 
       val sut = ConfigReader.readConfig(confPath)
 
-      "The following configuration keys are not used: unknown-key." shouldBe loggedAsWarning
+      "The following configuration key(s) are not used, they could stem from an older " +
+        "stryker4s version: unknown-key." shouldBe loggedAsWarning
     }
   }
 }

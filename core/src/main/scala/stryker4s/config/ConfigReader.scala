@@ -8,11 +8,10 @@ import pureconfig.error.{CannotReadFile, ConfigReaderException, ConfigReaderFail
 import pureconfig.generic.ProductHint
 import pureconfig.{ConfigSource, Derivation, ConfigReader => PureConfigReader}
 import stryker4s.config.implicits.ConfigReaderImplicits
+import cats.syntax.either._
 import pureconfig.generic.auto._
 
 object ConfigReader extends ConfigReaderImplicits with Logging {
-
-  import EitherSyntax.EitherOps
 
   val defaultConfigFileLocation: File = File.currentWorkingDirectory / "stryker4s.conf"
 
@@ -24,31 +23,111 @@ object ConfigReader extends ConfigReaderImplicits with Logging {
   def readConfig(confFile: File = defaultConfigFileLocation): Config = {
     implicit val hint: ProductHint[Config] = ProductHint[Config](allowUnknownKeys = false)
 
-    recoverAndLog(
-      readConfigOfType[Config](confFile).recoverWith(Failure.recoverUnknownKey(confFile))
-    )
+    Reader
+      .withoutRecovery[Config](confFile)
+      .recoverWithDerivation(Failure.onUnknownKey)
+      .recoverWith(Failure.onFileNotFound.andThen(_.asRight[ConfigReaderFailures]))
+      .config
   }
 
   def readConfigOfType[T](
       confFile: File = defaultConfigFileLocation
   )(implicit derivation: Derivation[PureConfigReader[T]]): Either[ConfigReaderFailures, T] =
-    ConfigSource.file(confFile.path).at("stryker4s").load[T]
+    Reader.withoutRecovery[T](confFile).tryRead
 
-  object Failure {
+  /**
+    * A configuration on how to attempt to read a config. The reason for its existence is to
+    * provide a convenient way to attempt to read a config with various [[Derivation]]s,
+    * depending on the [[ConfigReaderFailures]] that was returned from the last attempt.
+    * In addition to that, some logging is also enforced during the reading process.
+    * If not for those points, simply using the returned [[Either]] of the [[PureConfigReader]]
+    * would be sufficient as well, since the exposed API here is basically a subset of [[Either]]s.
+    * @param file the [[File]] from which the config is to be read.
+    * @param derivation the [[Derivation]] that is used to configure the [[PureConfigReader]].
+    * @tparam T the type of the config that is to be read.
+    */
+  private class Reader[T] private (file: File, onFailure: PartialFunction[ConfigReaderFailures, Reader.Result[T]])(
+      implicit derivation: Derivation[PureConfigReader[T]]
+  ) {
 
-    def recoverUnknownKey(confFile: File): PartialFunction[ConfigReaderFailures, Config] = {
+    /**
+      * Handle certain [[ConfigReaderFailures]] by providing a way to return a [[Reader.Result]]
+      * if they occur
+      */
+    def recoverWith(pf: PartialFunction[ConfigReaderFailures, Reader.Result[T]]): Reader[T] =
+      new Reader[T](file, this.onFailure orElse pf)
+
+    /**
+      * Handle certain [[ConfigReaderFailures]] by providing a different [[Derivation]] with
+      * which the [[PureConfigReader]] should be configured.
+      */
+    def recoverWithDerivation(pf: PartialFunction[ConfigReaderFailures, Derivation[PureConfigReader[T]]]): Reader[T] = {
+
+      def setDerivation(d: Derivation[PureConfigReader[T]]): Reader.Result[T] = {
+        val api = new Reader[T](file, this.onFailure)(d)
+        api.tryRead
+      }
+
+      recoverWith(pf.andThen(setDerivation))
+    }
+
+    /**
+      * Force the reading of the config.
+      * @note this will throw exceptions when a [[ConfigReaderFailures]] occurs for
+      *       which no recover-strategy was defined,
+      *
+      */
+    def config: T = tryRead.valueOr(Failure.throwException)
+
+    /**
+      * Attempt to read a config
+      */
+    def tryRead: Reader.Result[T] = {
+      info(s"Attempting to read config from ${file.path}")
+      ConfigSource
+        .file(file.path)
+        .at("stryker4s")
+        .load[T]
+        .recoverWith(onFailure)
+    }
+  }
+
+  private object Reader {
+
+    type Result[T] = Either[ConfigReaderFailures, T]
+
+    def withoutRecovery[T](file: File)(implicit d: Derivation[PureConfigReader[T]]): Reader[T] =
+      new Reader[T](file, PartialFunction.empty)
+  }
+
+  private object Failure {
+
+    /**
+      * When the config-parsing fails because of an unknown key in the configuration, a
+      * derivation for the [[PureConfigReader]] is provided that does not fail
+      * when unknown keys are present.
+      * The names of the unknown keys are logged.
+      */
+    def onUnknownKey: PartialFunction[ConfigReaderFailures, Derivation[PureConfigReader[Config]]] = {
       case ConfigReaderFailures(ConvertFailure(UnknownKey(key), _, _), failures) =>
         val unknownKeys = key :: failures.collect {
           case ConvertFailure(UnknownKey(k), _, _) => k
         }
+
         warn(
-          s"The following configuration keys are not used: ${unknownKeys.mkString(", ")}.\n" +
+          s"The following configuration key(s) are not used, they could stem from an older " +
+            s"stryker4s version: ${unknownKeys.mkString(", ")}.\n" +
             s"Please check the documentation at $configDocUrl for available options."
         )
-        nonStrictlyReadConfig(confFile)
+        implicit val hint: ProductHint[Config] = ProductHint[Config](allowUnknownKeys = true)
+        implicitly[Derivation[PureConfigReader[Config]]]
     }
 
-    def recoverFileNotFound: PartialFunction[ConfigReaderFailures, Config] = {
+    /**
+      * When the config-parsing fails because no file is found at the specified location,
+      * a default config is provided.
+      */
+    def onFileNotFound: PartialFunction[ConfigReaderFailures, Config] = {
       case ConfigReaderFailures(CannotReadFile(fileName, Some(_: FileNotFoundException)), _) =>
         warn(s"Could not find config file $fileName")
         warn("Using default config instead...")
@@ -57,45 +136,17 @@ object ConfigReader extends ConfigReaderImplicits with Logging {
         //  https://github.com/stryker-mutator/stryker4s/issues/116
         // info("Config used: " + defaultConf.toHoconString)
 
-        Config()
+        Config.default
     }
 
-    def throwException: PartialFunction[ConfigReaderFailures, Config] = {
-      case failures =>
-        error("Failures in reading config: ")
-        error(failures.toList.map(_.description).mkString(System.lineSeparator))
-        throw ConfigReaderException(failures)
-    }
-  }
+    /**
+      * Throw a [[ConfigReaderException]] and log the encountered failures.
+      */
+    def throwException[T](failures: ConfigReaderFailures): Nothing = {
+      error("Failures in reading config: ")
+      error(failures.toList.map(_.description).mkString(System.lineSeparator))
 
-  private def nonStrictlyReadConfig(confFile: File): Config =
-    recoverAndLog(
-      readConfigOfType[Config](confFile)
-    )
-
-  private def recoverAndLog(either: Either[ConfigReaderFailures, Config]): Config = {
-    val conf = either.valueOr(Failure.recoverFileNotFound.orElse(Failure.throwException))
-    logAndReturn(info("Using stryker4s.conf in the current working directory"))(conf)
-  }
-
-  def logAndReturn[T](log: => Unit)(obj: T): T = {
-    log
-    obj
-  }
-}
-
-object EitherSyntax {
-
-  implicit final class EitherOps[A, B](val eab: Either[A, B]) extends AnyVal {
-
-    def recoverWith[BB >: B](pf: PartialFunction[A, BB]): Either[A, BB] = eab match {
-      case Left(a) if pf.isDefinedAt(a) => Right(pf(a))
-      case _                            => eab
-    }
-
-    def valueOr[BB >: B](f: A => BB): BB = eab match {
-      case Left(a)  => f(a)
-      case Right(b) => b
+      throw ConfigReaderException(failures)
     }
   }
 }
